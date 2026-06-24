@@ -11,7 +11,7 @@ A 4-bit counter increments on every clock edge. The player presses **STOP** to f
 On reset, an internal 4-bit counter starts at `0` and increments every clock cycle. The `stop` input is sampled and latched — once pressed, the latch holds and the counter freezes at its current value. If that value is exactly `10`, the `win` output is asserted; otherwise the round is a loss. A reset clears both the counter and the win latch.
 
 <p align="center">
-    <img src="./docs/StopTheClockDiagram.png" width="60%" />
+    <img src="./docs/StopTheClockDiagram_white.png" width="60%" />
 </p>
 
 ### Module hierarchy
