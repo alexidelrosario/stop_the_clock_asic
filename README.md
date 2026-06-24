@@ -1,42 +1,71 @@
-![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
+![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg)
 
-# Tiny Tapeout Verilog Project Template
+# Stop the Clock — Structural Verilog ASIC Design 
 
-- [Read the documentation for project](docs/info.md)
+A single-player reaction game implemented as a custom digital ASIC following the [Tiny Tapeout](https://tinytapeout.com) workflow. 
 
-## What is Tiny Tapeout?
+A 4-bit counter increments on every clock edge. The player presses **STOP** to freeze the count — land exactly on **10** and a `win` output goes high. Built from scratch in structural Verilog: no behavioral counters, no `+`/`-` operators, every adder and flip-flop is hand-instantiated gate logic.
 
-Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
+## How it works
 
-To learn more and get started, visit https://tinytapeout.com.
+On reset, an internal 4-bit counter starts at `0` and increments every clock cycle. The `stop` input is sampled and latched — once pressed, the latch holds and the counter freezes at its current value. If that value is exactly `10`, the `win` output is asserted; otherwise the round is a loss. A reset clears both the counter and the win latch.
 
-## Set up your Verilog project
+<p align="center">
+    <img src="./docs/images/StopTheClockDiagram" width="60%" />
+</p>
 
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
+### Module hierarchy
 
-The GitHub action will automatically build the ASIC files using [LibreLane](https://www.zerotoasiccourse.com/terminology/librelane/).
+| Module | Role |
+|---|---|
+| `src/tt_um_alexijustine_stop_the_clock.v` | Top-level TT wrapper: stop latch, win comparator, pin mapping |
+| `src/counter4.v` | 4-bit up/down counter with synchronous load and clock enable |
+| `src/addsub8.v` | 4-bit adder/subtractor (two's-complement, via conditional invert) |
+| `src/fulladder4.v` | 4-bit ripple-carry full adder with overflow detection |
 
-## Enable GitHub actions to build the results page
+### Pinout
 
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
+| Pin | Direction | Function |
+|---|---|---|
+| `ui_in[0]` | input | STOP button |
+| `uo_out[3:0]` | output | Live counter value (0–15) |
+| `uo_out[4]` | output | `win` flag — high when stopped at exactly 10 |
+| `rst_n` | input | Active-low reset |
 
-## Resources
+(Unused `ui_in`, `uio`, and high `uo_out` bits are tied off.)
 
-- [FAQ](https://tinytapeout.com/faq/)
-- [Digital design lessons](https://tinytapeout.com/digital_design/)
-- [Learn how semiconductors work](https://tinytapeout.com/siliwiz/)
-- [Join the community](https://tinytapeout.com/discord)
-- [Build your design locally](https://www.tinytapeout.com/guides/local-hardening/)
+## Testing
 
-## What next?
+Verified with a [cocotb](https://docs.cocotb.org/en/stable/) testbench (`test/test.py`) simulating the gate-level design directly — no physical hardware required:
 
-- [Submit your design to the next shuttle](https://app.tinytapeout.com/).
-- Edit [this README](README.md) and explain your design, how it works, and how to test it.
-- Share your project on your social network of choice:
-  - LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
-  - Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
-  - X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
-  - Bluesky [@tinytapeout.com](https://bsky.app/profile/tinytapeout.com)
+1. **Lose case** — STOP pressed at count `5`: counter holds at 5, `win` stays low.
+2. **Win case** — STOP pressed at count `10`: counter holds at 10, `win` goes high.
+3. **Hold behavior** — counter does not resume incrementing after STOP is released.
+4. **Reset** — clears both the counter and the win flag back to 0.
+
+```sh
+cd test
+pip install -r requirements.txt
+make -B                            # run RTL simulation
+gtkwave tb.fst tb.gtkw             # inspect waveforms in a GUI
+```
+
+CI runs RTL simulation, gate-level (post-synthesis) simulation, and a full [LibreLane](https://www.zerotoasiccourse.com/terminology/librelane/) hardening build on every push — see the badges above.
+
+## Repo layout
+
+```
+src/
+  tt_um_alexijustine_stop_the_clock.v   top-level module
+  counter4.v                            4-bit counter
+  addsub8.v                             adder/subtractor
+  fulladder4.v                          ripple-carry adder
+test/
+  test.py                               cocotb testbench
+  tb.v, tb.gtkw                         simulation harness, waveform config
+docs/info.md                            project datasheet (rendered on the TT website)
+info.yaml                               TT project metadata, pin descriptions, build config
+```
+
+## Background
+Built for UC Santa Cruz's Intro to VLSI coursework, this project was designed to meet Tiny Tapeout design requirements and replicate a realistic ASIC development workflow. The project focused on low-level hardware design fundamentals, including flip-flop design, ripple-carry arithmetic, combinational logic, and structural RTL development without relying on Verilog’s built-in arithmetic operators. The final design follows a professional digital hardware workflow, including simulation, synthesis, verification, and physical layout generation.
